@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Command Center">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="static/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="static/icon-180.png">
+<title>Command Center</title>
+<link rel="stylesheet" href="static/app.css?v=b469914b48">
+</head>
+<body data-view="overview">
+<div class="lock" id="lock" hidden>
+  <form class="lock-box" id="lock-form" autocomplete="off">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+    <h1>Command Center</h1>
+    <p>PCの setup_mobile で表示されたパスフレーズを入力してください。<br>ハイフンと空白は省いてもかまいません。</p>
+    <input id="lock-pass" type="password" inputmode="text" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="xxxx-xxxx-xxxx-xxxx-xxxx-xxxx" aria-label="パスフレーズ">
+    <label class="lock-remember"><input type="checkbox" id="lock-remember" checked> この端末で次から入力を省く</label>
+    <button type="submit" id="lock-submit">開く</button>
+    <p class="lock-error" id="lock-error" role="alert"></p>
+  </form>
+</div>
+
+<header class="top">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 8h20l-8 7h8L10 26l5-8H6z" fill="url(#g)"/><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b9b2ff"/><stop offset="1" stop-color="#6d5dfc"/></linearGradient></defs></svg>
+    <span>Command Center</span>
+  </div>
+  <nav class="tabs" aria-label="表示の切り替え" role="tablist">
+    <button type="button" role="tab" data-tab="overview">概要</button>
+    <button type="button" role="tab" data-tab="money">家計</button>
+    <button type="button" role="tab" data-tab="stocks">株</button>
+    <button type="button" role="tab" data-tab="plan">予定・タスク</button>
+    <button type="button" role="tab" data-tab="review">振り返り</button>
+    <button type="button" role="tab" data-tab="status">状態<span class="tab-badge" id="status-badge" hidden></span></button>
+  </nav>
+  <div class="top-actions">
+    <span class="updated" id="updated">読み込み中…</span>
+    <button class="icon-btn" id="forget" type="button" title="この端末からパスフレーズを消す">
+      <svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+    </button>
+    <button class="icon-btn" id="mask" type="button" title="金額を隠す" aria-pressed="false">
+      <svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+    </button>
+    <button class="icon-btn" id="refresh" type="button" title="最新の情報に更新">
+      <svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/></svg>
+    </button>
+  </div>
+</header>
+
+<main id="app">
+  <div class="demo-banner" id="mobile-banner" hidden></div>
+  <div class="demo-banner" id="demo" hidden>デモ表示です（架空のサンプルデータ）。実データは読み込んでいません。</div>
+  <h1 class="page-title"><span id="greeting">概要</span><small id="date"></small></h1>
+
+  <section class="grid">
+    <article class="card kpi" id="kpi-balance" data-v="overview money" data-m="overview money"></article>
+    <article class="card kpi" id="kpi-income" data-v="overview money" data-m="overview money"></article>
+    <article class="card kpi" id="kpi-expense" data-v="overview money" data-m="overview money"></article>
+    <article class="card kpi" id="kpi-invest" data-v="overview money" data-m="overview money"></article>
+
+    <article class="card flex" id="today-card" data-v="overview plan" data-m="overview">
+      <header class="card-head"><h2>今日やること</h2><span class="count" id="today-count"></span></header>
+      <ol class="today-list scroll" id="today-list"></ol>
+    </article>
+
+    <article class="card flex" id="pace-card" data-v="overview money" data-m="money">
+      <header class="card-head"><h2>今月の支出ペース</h2><div class="legend" id="pace-legend"></div></header>
+      <div class="pace-head" id="pace-head"></div>
+      <div class="chart grow" id="pace-chart"></div>
+    </article>
+
+    <article class="card flex" id="alerts-card" data-v="overview status" data-m="overview status">
+      <header class="card-head"><h2>警告</h2><span class="count" id="alert-count"></span></header>
+      <ul class="alert-list scroll" id="alert-list"></ul>
+    </article>
+
+    <article class="card flex" id="cap-card" data-v="money stocks" data-m="money stocks">
+      <header class="card-head"><h2>投資余力</h2><span class="sub" id="cap-sub"></span></header>
+      <div class="scroll" id="cap"></div>
+    </article>
+
+    <article class="card flex" id="banks-card" data-v="money" data-m="money">
+      <header class="card-head"><h2>口座と資産</h2><span class="sub" id="banks-sub"></span></header>
+      <div class="scroll" id="banks"></div>
+    </article>
+
+    <article class="card flex" id="months-card" data-v="money" data-m="money">
+      <header class="card-head"><h2>月別の収支</h2><div class="legend" id="months-legend"></div></header>
+      <div class="chart grow" id="months-chart"></div>
+    </article>
+
+    <article class="card flex" id="donut-card" data-v="money" data-m="overview money">
+      <header class="card-head"><h2>支出の内訳</h2><div class="month-nav" id="donut-nav"></div></header>
+      <p class="card-note" id="donut-note"></p>
+      <div class="donut-layout grow">
+        <div class="donut-wrap" id="donut"></div>
+        <ul class="cat-list scroll" id="cat-list"></ul>
+      </div>
+    </article>
+
+    <article class="card flex" id="review-card" data-v="money" data-m="money">
+      <header class="card-head"><h2>家計の確認</h2><span class="sub" id="review-sub"></span></header>
+      <div class="scroll" id="review"></div>
+    </article>
+
+    <article class="card flex" id="cand-card" data-v="overview stocks" data-m="stocks">
+      <header class="card-head"><h2>買い候補（確認用）</h2><span class="sub" id="cand-sub"></span></header>
+      <div class="table-wrap scroll"><table class="tbl" id="cand-table"></table></div>
+    </article>
+
+    <article class="card flex" id="hold-card" data-v="stocks" data-m="stocks">
+      <header class="card-head"><h2>保有銘柄の監視</h2><span class="sub" id="hold-sub"></span></header>
+      <div class="table-wrap scroll"><table class="tbl" id="hold-table"></table></div>
+    </article>
+
+    <article class="card flex" id="fund-card" data-v="stocks" data-m="stocks">
+      <header class="card-head"><h2>投資信託</h2><span class="sub" id="fund-sub"></span></header>
+      <div class="scroll" id="funds"></div>
+    </article>
+
+    <article class="card flex" id="recent-card" data-v="stocks" data-m="stocks">
+      <header class="card-head"><h2>最近の株の通知</h2><span class="sub" id="recent-sub"></span></header>
+      <ul class="recent-list scroll" id="recent-list"></ul>
+    </article>
+
+    <article class="card flex" id="orders-card" data-v="stocks" data-m="stocks">
+      <header class="card-head"><h2>指値注文</h2><span class="sub" id="orders-sub"></span></header>
+      <ul class="order-list scroll" id="order-list"></ul>
+    </article>
+
+    <article class="card flex" id="reminders-card" data-v="overview plan" data-m="plan">
+      <header class="card-head"><h2>タスク（iCloud）</h2><span class="sub" id="rem-sub"></span></header>
+      <div class="scroll" id="reminders"></div>
+    </article>
+
+    <article class="card flex" id="week-card" data-v="plan" data-m="plan">
+      <header class="card-head"><h2>今週の予定</h2><span class="sub" id="week-sub"></span></header>
+      <div class="week-grid grow" id="week-grid"></div>
+    </article>
+
+    <article class="card flex" id="check-card" data-v="status" data-m="status">
+      <header class="card-head"><h2>データの検証</h2><span class="sub" id="check-sub"></span></header>
+      <div class="scroll" id="checks"></div>
+    </article>
+
+    <article class="card flex" id="rv-main" data-v="review" data-m="review">
+      <header class="card-head"><h2 id="rv-title">振り返り</h2><div class="month-nav" id="rv-nav"></div></header>
+      <div id="rv-body"></div>
+    </article>
+
+    <article class="card flex" id="rv-decisions" data-v="review" data-m="review">
+      <header class="card-head"><h2>購入などの判断とその後</h2><span class="sub" id="rv-dec-sub"></span></header>
+      <div id="rv-dec"></div>
+    </article>
+
+    <article class="card flex" id="rv-rules" data-v="review" data-m="review">
+      <header class="card-head"><h2>自分のルール</h2><span class="sub" id="rv-rules-sub"></span></header>
+      <div id="rv-rule-list"></div>
+    </article>
+
+    <article class="card flex" id="rv-record" data-v="review" data-m="review">
+      <header class="card-head"><h2>振り返りの記録</h2><span class="sub" id="rv-rec-sub"></span></header>
+      <div id="rv-rec"></div>
+    </article>
+
+    <article class="card flex" id="jobs-card" data-v="status" data-m="status">
+      <header class="card-head"><h2>自動実行の状態</h2></header>
+      <div class="scroll">
+        <ul class="job-list" id="job-list"></ul>
+        <h3 class="mini-title">PFI週次実行の履歴</h3>
+        <ul class="run-list" id="run-list"></ul>
+      </div>
+    </article>
+
+    <article class="card flex" id="conn-card" data-v="status" data-m="status">
+      <header class="card-head"><h2>接続状況</h2></header>
+      <div class="scroll">
+        <ul class="conn-list" id="conn-list"></ul>
+        <h3 class="mini-title">データの鮮度</h3>
+        <ul class="fresh-list" id="fresh-list"></ul>
+      </div>
+    </article>
+  </section>
+  <p class="foot">PCが送った暗号化データを、この端末の中だけで復号して表示しています。</p>
+</main>
+<nav class="bottom-nav" aria-label="表示の切り替え（スマホ）">
+  <button type="button" data-tab="overview"><svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9a1 1 0 0 1-1 1h-5v-6h-4v6H5a1 1 0 0 1-1-1z"/></svg><span>ホーム</span></button>
+  <button type="button" data-tab="money"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/></svg><span>家計</span></button>
+  <button type="button" data-tab="stocks"><svg viewBox="0 0 24 24"><path d="M4 19h16M6 15l4-5 3 3 5-7"/></svg><span>株</span></button>
+  <button type="button" data-tab="plan"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg><span>予定</span></button>
+  <button type="button" data-tab="review"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M8 9h8M8 13h5"/><path d="M15 16l2 2 3-4"/></svg><span>振り返り</span></button>
+  <button type="button" data-tab="status"><svg viewBox="0 0 24 24"><path d="M12 4l9 16H3z"/><path d="M12 10v4M12 17v.5"/></svg><span>状態</span><span class="tab-badge" id="status-badge-m" hidden></span></button>
+</nav>
+<div class="tooltip" id="tip" role="tooltip" hidden></div>
+<script src="static/mobile.js?v=b469914b48"></script>
+<script src="static/app.js?v=b469914b48"></script>
+</body>
+</html>
